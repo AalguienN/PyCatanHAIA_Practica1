@@ -1,6 +1,6 @@
 from Managers.GameDirector import GameDirector
 import AgentsGeneticCatan2025.helpers as helpers 
-from individuo_gen import Indiviuo as Individuo
+from individuo_gen import Individuo as Individuo
 
 from funciones_geneticas import *
 
@@ -17,7 +17,7 @@ import os
 num_indiv = 20
 
 # Parámetros para la evolución
-generations = 2
+generations = 50
 games_per_generation = 100
 elite_size = 2            # Número de individuos que se mantienen sin cambios
 tournament_size = 3       # Tamaño del torneo para selección
@@ -82,7 +82,7 @@ def main():
     print("Starting...")
 
     # Inicialización de la población
-    individuos = [Indiviuo() for _ in range(num_indiv)]
+    individuos = [Individuo() for _ in range(num_indiv)]
     for indi in individuos:
         indi.random_election_weights()
         print("Pesos iniciales:", indi.election)

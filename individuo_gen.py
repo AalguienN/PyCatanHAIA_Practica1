@@ -16,7 +16,7 @@ from AgentsGeneticCatan2025.TristanAgent import TristanAgent as t_a
 all_agents = [ra, aha, ap_a, apj_a, cz_a, c_a, e_a, pa_a, s_a, t_a]
 
 
-class Indiviuo: 
+class Individuo: 
     def __init__(self):
         self.__eleccion_prob = [0 for _ in all_agents]
         self.__fitness = 0

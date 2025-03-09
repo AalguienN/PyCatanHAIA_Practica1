@@ -1,5 +1,5 @@
 import random
-from individuo_gen import Indiviuo
+from individuo_gen import Individuo
 from alg_gen import tournament_size,mutation_rate,mutation_strength
 
 def tournament_selection(population, tournament_size=3):
@@ -9,7 +9,7 @@ def tournament_selection(population, tournament_size=3):
     return best
 
 def crossover(parent1, parent2):
-    child = Indiviuo()
+    child = Individuo()
     new_weights = []
     # Cruce uniforme: para cada peso, se elige de uno u otro padre
     for w1, w2 in zip(parent1.election, parent2.election):
