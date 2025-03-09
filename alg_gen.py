@@ -1,30 +1,23 @@
 from Managers.GameDirector import GameDirector
 import AgentsGeneticCatan2025.helpers as helpers 
-from individuo_gen import *
+from individuo_gen import Indiviuo as Individuo
 
-from Agents.RandomAgent import RandomAgent as ra
-from Agents.AdrianHerasAgent import AdrianHerasAgent as aha
-from Agents.AlexPastorAgent import AlexPastorAgent as ap_a
-from AgentsGeneticCatan2025.AlexPelochoJaimeAgent import AlexPelochoJaimeAgent as apj_a
-from AgentsGeneticCatan2025.CarlesZaidaAgent import CarlesZaidaAgent as cz_a
-from AgentsGeneticCatan2025.CrabisaAgent import CrabisaAgent as c_a 
-from AgentsGeneticCatan2025.EdoAgent import EdoAgent as e_a 
-from AgentsGeneticCatan2025.PabloAleixAlexAgent import PabloAleixAlexAgent as pa_a
-from AgentsGeneticCatan2025.SigmaAgent import SigmaAgent as s_a
-from AgentsGeneticCatan2025.TristanAgent import TristanAgent as t_a
+from funciones_geneticas import *
 
 from tqdm import tqdm
 
 import concurrent.futures
 import random
+import numpy as np
+import os
 
-all_agents = [ra, aha, ap_a, apj_a, cz_a, c_a, e_a, pa_a, s_a, t_a]
+
 
 # Parámetros del algoritmo
 num_indiv = 20
 
 # Parámetros para la evolución
-generations = 50
+generations = 2
 games_per_generation = 100
 elite_size = 2            # Número de individuos que se mantienen sin cambios
 tournament_size = 3       # Tamaño del torneo para selección
@@ -33,8 +26,13 @@ mutation_strength = 0.05  # Magnitud de la mutación
 
 individuos = []
 
+import pandas as pd
 
 def fitness_func(game_trace: dict):
+    if not game_trace["game"]:  # Check if the game_trace is empty
+        print("Warning: Empty game trace. Assigning minimum fitness values.")
+        return [0, 0, 0, 0]  # Return a neutral fitness score
+    
     last_round = max(game_trace["game"].keys(), key=lambda r: int(r.split("_")[-1]))
     last_turn = max(game_trace["game"][last_round].keys(), key=lambda t: int(t.split("_")[-1].lstrip("P")))
     victory_points = game_trace["game"][last_round][last_turn]["end_turn"]["victory_points"]
@@ -69,67 +67,14 @@ def game(individuos, jugadores):
 
 # --- Funciones de evolución (selección, cruce y mutación) ---
 
-def tournament_selection(population, tournament_size=3):
-    # Selecciona 'tournament_size' individuos al azar y devuelve el de mayor fitness.
-    selected = random.sample(population, tournament_size)
-    best = max(selected, key=lambda indiv: indiv.fitness)
-    return best
-
-def crossover(parent1, parent2):
-    child = Indiviuo()
-    new_weights = []
-    # Cruce uniforme: para cada peso, se elige de uno u otro padre
-    for w1, w2 in zip(parent1.election, parent2.election):
-        new_weights.append(w1 if random.random() < 0.5 else w2)
-    # Normalizar para que la suma sea 1
-    total = sum(new_weights)
-    if total == 0:
-        new_weights = [1/len(new_weights)] * len(new_weights)
-    else:
-        new_weights = [w / total for w in new_weights]
-    child.election = new_weights
-    return child
-
-def mutate(indiv, mutation_rate=0.1, mutation_strength=0.05):
-    new_weights = []
-    for w in indiv.election:
-        if random.random() < mutation_rate:
-            w += random.uniform(-mutation_strength, mutation_strength)
-            if w < 0:
-                w = 0
-        new_weights.append(w)
-    total = sum(new_weights)
-    if total == 0:
-        new_weights = [1/len(new_weights)] * len(new_weights)
-    else:
-        new_weights = [w / total for w in new_weights]
-    indiv.election = new_weights
-    return indiv
-
-def reproduce_population(population, elite_size=2, new_size=None):
-    if new_size is None:
-        new_size = len(population)
-    # Ordena la población por fitness de mayor a menor
-    sorted_pop = sorted(population, key=lambda indiv: indiv.fitness, reverse=True)
-    new_population = []
-    # Elitismo: conservar los mejores individuos sin cambios
-    new_population.extend(sorted_pop[:elite_size])
-    # Generar nuevos individuos hasta alcanzar el tamaño deseado
-    while len(new_population) < new_size:
-        parent1 = tournament_selection(population, tournament_size)
-        parent2 = tournament_selection(population, tournament_size)
-        child = crossover(parent1, parent2)
-        child = mutate(child, mutation_rate, mutation_strength)
-        new_population.append(child)
-    return new_population
-
-
 def handle_game(individuos,jugadores):
     game_trace = game(individuos=individuos,jugadores=jugadores)
     fitness = fitness_func(game_trace=game_trace)
     return jugadores, fitness
 
 # --- Función principal del algoritmo genético ---
+
+fitness_data = []
 
 def main():
     global individuos
@@ -142,9 +87,11 @@ def main():
         indi.random_election_weights()
         print("Pesos iniciales:", indi.election)
 
+    best_probs_per_generation = []  # Store the best probabilities per generation
+
     for gen in range(generations):
         print(f"\n=== Generación {gen} ===")
-        print("----------------->",len(individuos))
+        print("----------------->", len(individuos))
         # Reinicia el fitness de cada individuo para la generación
         for indi in individuos:
             indi.fitness = 0
@@ -157,9 +104,6 @@ def main():
                 idx = get_random_indiv(selected_inds)
                 selected_inds.append(idx)
             partidas.append(selected_inds)
-            
-        # for g in partidas:
-        #     print(g)
         
         with concurrent.futures.ProcessPoolExecutor() as executor:
             futures = [executor.submit(handle_game, individuos, p) for p in partidas]
@@ -169,20 +113,37 @@ def main():
                 jugadores, fitness = f.result()
                 update_fitness(jugadores, fitness)
                 resultados.append((jugadores, fitness))
-
-
-        # for jugadores, fitness in resultados:
-        #     update_fitness(jugadores, fitness)
-        #     print("Fitness:",[i.fitness for i in individuos])
         
         # Imprime el mejor fitness de la generación
         best = max(individuos, key=lambda i: i.fitness)
         print("Mejor fitness de la generación:", best.fitness)
         print("Probabilidades mejor:", best.election)
-        
+
+        fitness_data.append([i.fitness for i in individuos])
+        best_probs_per_generation.append(best.election)  # Save best probabilities
+
         # Reproducción: se crea la nueva generación
         individuos = reproduce_population(individuos, elite_size=elite_size, new_size=num_indiv)
         print("Nueva generación creada.\n")
-        
+
+    best_fitness_per_generation = np.max(fitness_data, axis=1)
+    avg_fitness_per_generation = np.mean(fitness_data, axis=1)
+    
+    # Crear DataFrame con los datos simulados
+    df_results = pd.DataFrame({
+        "Generacion": range(generations),
+        "Fitness_Medio": avg_fitness_per_generation,
+        "Fitness_Maximo": best_fitness_per_generation,
+        "Mejor_Probabilidades": [",".join(map(str, probs)) for probs in best_probs_per_generation],  # Convert list to string
+    })
+
+    folder_path = "./data"
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    csv_filename = "./data/evolucion_fitness.csv"
+    df_results.to_csv(csv_filename, index=False)
+
 if __name__ == "__main__":
     main()

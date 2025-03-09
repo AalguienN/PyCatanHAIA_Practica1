@@ -1,6 +1,20 @@
-from alg_gen import all_agents
+# from alg_gen import all_agents
 
 import random
+
+from Agents.RandomAgent import RandomAgent as ra
+from Agents.AdrianHerasAgent import AdrianHerasAgent as aha
+from Agents.AlexPastorAgent import AlexPastorAgent as ap_a
+from AgentsGeneticCatan2025.AlexPelochoJaimeAgent import AlexPelochoJaimeAgent as apj_a
+from AgentsGeneticCatan2025.CarlesZaidaAgent import CarlesZaidaAgent as cz_a
+from AgentsGeneticCatan2025.CrabisaAgent import CrabisaAgent as c_a 
+from AgentsGeneticCatan2025.EdoAgent import EdoAgent as e_a 
+from AgentsGeneticCatan2025.PabloAleixAlexAgent import PabloAleixAlexAgent as pa_a
+from AgentsGeneticCatan2025.SigmaAgent import SigmaAgent as s_a
+from AgentsGeneticCatan2025.TristanAgent import TristanAgent as t_a
+
+all_agents = [ra, aha, ap_a, apj_a, cz_a, c_a, e_a, pa_a, s_a, t_a]
+
 
 class Indiviuo: 
     def __init__(self):
