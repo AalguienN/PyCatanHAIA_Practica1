@@ -13,12 +13,14 @@ from AgentsGeneticCatan2025.PabloAleixAlexAgent import PabloAleixAlexAgent as pa
 from AgentsGeneticCatan2025.SigmaAgent import SigmaAgent as s_a
 from AgentsGeneticCatan2025.TristanAgent import TristanAgent as t_a
 
+from tqdm import tqdm
+
+import concurrent.futures
 import random
 
 all_agents = [ra, aha, ap_a, apj_a, cz_a, c_a, e_a, pa_a, s_a, t_a]
 
 # Parámetros del algoritmo
-max_games = 100  # (podrías dejar de usarlo si defines generaciones)
 num_indiv = 20
 
 # Parámetros para la evolución
@@ -55,8 +57,8 @@ def get_random_indiv(already_selected=[]):
         indiv = random.randrange(0, len(individuos))
     return indiv
 
-def game(individuos):
-    agents = [individuos[i].random_agent() for i in range(4)]
+def game(individuos, jugadores):
+    agents = [individuos[i].random_agent() for i in jugadores]
     try:
         game_director = GameDirector(agents=agents, max_rounds=200, store_trace=False)
         game_trace = game_director.game_start(print_outcome=False)
@@ -121,6 +123,12 @@ def reproduce_population(population, elite_size=2, new_size=None):
         new_population.append(child)
     return new_population
 
+
+def handle_game(individuos,jugadores):
+    game_trace = game(individuos=individuos,jugadores=jugadores)
+    fitness = fitness_func(game_trace=game_trace)
+    return jugadores, fitness
+
 # --- Función principal del algoritmo genético ---
 
 def main():
@@ -141,17 +149,31 @@ def main():
         for indi in individuos:
             indi.fitness = 0
         
+        partidas = []
         # Realiza una serie de juegos para evaluar la población
         for _ in range(games_per_generation):
             selected_inds = []
             for _ in range(4):
                 idx = get_random_indiv(selected_inds)
                 selected_inds.append(idx)
+            partidas.append(selected_inds)
             
-            game_trace = game(individuos)
-            fitness = fitness_func(game_trace=game_trace)
-            update_fitness(selected_inds, fitness)
-            print("Fitness:", [i.fitness for i in individuos])
+        # for g in partidas:
+        #     print(g)
+        
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            futures = [executor.submit(handle_game, individuos, p) for p in partidas]
+            
+            resultados = []
+            for f in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=f"Generación {gen}"):
+                jugadores, fitness = f.result()
+                update_fitness(jugadores, fitness)
+                resultados.append((jugadores, fitness))
+
+
+        # for jugadores, fitness in resultados:
+        #     update_fitness(jugadores, fitness)
+        #     print("Fitness:",[i.fitness for i in individuos])
         
         # Imprime el mejor fitness de la generación
         best = max(individuos, key=lambda i: i.fitness)
