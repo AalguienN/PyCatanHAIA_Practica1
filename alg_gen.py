@@ -10,15 +10,17 @@ import concurrent.futures
 import random
 import numpy as np
 import os
+import argparse
 
-
+# Valores por defecto
+extra_name = ""
 
 # Parámetros del algoritmo
-num_indiv = 20
+num_indiv = 25
 
 # Parámetros para la evolución
-generations = 50
-games_per_generation = 100
+generations = 100
+games_per_generation = 150
 elite_size = 2            # Número de individuos que se mantienen sin cambios
 tournament_size = 3       # Tamaño del torneo para selección
 mutation_rate = 0.1       # Probabilidad de mutar cada gen
@@ -75,6 +77,7 @@ def handle_game(individuos,jugadores):
 # --- Función principal del algoritmo genético ---
 
 fitness_data = []
+todos_los_individuos_probabilidades = []
 
 def main():
     global individuos
@@ -85,7 +88,7 @@ def main():
     individuos = [Individuo() for _ in range(num_indiv)]
     for indi in individuos:
         indi.random_election_weights()
-        print("Pesos iniciales:", indi.election)
+        # print("Pesos iniciales:", indi.election)
 
     best_probs_per_generation = []  # Store the best probabilities per generation
 
@@ -122,6 +125,9 @@ def main():
         fitness_data.append([i.fitness for i in individuos])
         best_probs_per_generation.append(best.election)  # Save best probabilities
 
+        generacion_probabilidades = [ind.election for ind in individuos]
+        todos_los_individuos_probabilidades.append(generacion_probabilidades)
+
         # Reproducción: se crea la nueva generación
         individuos = reproduce_population(individuos, elite_size=elite_size, new_size=num_indiv)
         print("Nueva generación creada.\n")
@@ -137,13 +143,58 @@ def main():
         "Mejor_Probabilidades": [",".join(map(str, probs)) for probs in best_probs_per_generation],  # Convert list to string
     })
 
+    df_results_todas = pd.DataFrame({
+        "Generacion": np.repeat(range(generations), num_indiv),
+        "Individuo": np.tile(range(num_indiv), generations),
+        "Probabilidades": [','.join(map(str, probs)) for gen_probs in todos_los_individuos_probabilidades for probs in gen_probs]
+    })
+
     folder_path = "./data"
 
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
-    csv_filename = "./data/evolucion_fitness.csv"
+    csv_filename = f"./data/{extra_name}_evolucion_fitness.csv"
     df_results.to_csv(csv_filename, index=False)
 
+    csv_filename_all = f"./data/{extra_name}_evolucion_fitness_all.csv"
+    df_results_todas.to_csv(csv_filename_all, index=False)
+
 if __name__ == "__main__":
+    # Configurar argparse para recibir parámetros desde la línea de comandos
+    parser = argparse.ArgumentParser(description="Algoritmo Genético - PyCatan")
+
+    # Parámetros del algoritmo
+    parser.add_argument("--extra_name", type=str, default="", help="Nombre extra para los archivos generados")
+    parser.add_argument("--num_indiv", type=int, default=25, help="Número de individuos en la población")
+    parser.add_argument("--generations", type=int, default=100, help="Número de generaciones")
+    parser.add_argument("--games_per_generation", type=int, default=150, help="Número de juegos por generación")
+    parser.add_argument("--elite_size", type=int, default=2, help="Número de individuos que se mantienen sin cambios (elitismo)")
+    parser.add_argument("--tournament_size", type=int, default=3, help="Tamaño del torneo para selección")
+    parser.add_argument("--mutation_rate", type=float, default=0.1, help="Probabilidad de mutar cada gen")
+    parser.add_argument("--mutation_strength", type=float, default=0.05, help="Magnitud de la mutación")
+
+    # Parsear argumentos
+    args = parser.parse_args()
+
+    # Asignar valores a las variables
+    extra_name = args.extra_name
+    num_indiv = args.num_indiv
+    generations = args.generations
+    games_per_generation = args.games_per_generation
+    elite_size = args.elite_size
+    tournament_size = args.tournament_size
+    mutation_rate = args.mutation_rate
+    mutation_strength = args.mutation_strength
+
+    # Mostrar los valores que se están utilizando
+    print(f"Ejecutando con los siguientes parámetros:")
+    print(f"  extra_name: {extra_name}")
+    print(f"  num_indiv: {num_indiv}")
+    print(f"  generations: {generations}")
+    print(f"  games_per_generation: {games_per_generation}")
+    print(f"  elite_size: {elite_size}")
+    print(f"  tournament_size: {tournament_size}")
+    print(f"  mutation_rate: {mutation_rate}")
+    print(f"  mutation_strength: {mutation_strength}")
     main()
