@@ -21,6 +21,7 @@ num_indiv = 25
 # Parámetros para la evolución
 generations = 100
 games_per_generation = 150
+games_per_agent_standarized = 5 #Sólo lo uso para partidas estandarizadas (1 vs 3 neutrales)
 elite_size = 2            # Número de individuos que se mantienen sin cambios
 tournament_size = 3       # Tamaño del torneo para selección
 mutation_rate = 0.1       # Probabilidad de mutar cada gen
@@ -48,7 +49,13 @@ def fitness_func(game_trace: dict):
 def update_fitness(agents_ids, fitness):
     global individuos
     for num, idx in enumerate(agents_ids):
+        if idx == -1: continue # Individuo equiprobable
         individuos[idx].fitness += fitness[num]
+
+def average_fitness():
+    global individuos
+    for idx in range(len(individuos)):
+        individuos[idx].fitness /= games_per_agent_standarized
 
 def get_random_indiv(already_selected=[]):
     global individuos
@@ -57,8 +64,16 @@ def get_random_indiv(already_selected=[]):
         indiv = random.randrange(0, len(individuos))
     return indiv
 
+def get_indi(i,individuos):
+    if i == -1:
+        i_neutral = Individuo()
+        i_neutral.uniform_election_weights()
+        return i_neutral.random_agent()
+    else:
+        return individuos[i].random_agent()
+
 def game(individuos, jugadores):
-    agents = [individuos[i].random_agent() for i in jugadores]
+    agents = [get_indi(i,individuos) for i in jugadores]
     try:
         game_director = GameDirector(agents=agents, max_rounds=200, store_trace=False)
         game_trace = game_director.game_start(print_outcome=False)
@@ -75,6 +90,28 @@ def handle_game(individuos,jugadores):
     return jugadores, fitness
 
 # --- Función principal del algoritmo genético ---
+
+# Realiza una serie de juegos para evaluar la población
+# Sólo entre individuos reales
+def prepare_games_random_individuals():        
+    partidas = []
+    for _ in range(games_per_generation):
+        selected_inds = []
+        for _ in range(4):
+            idx = get_random_indiv(selected_inds)
+            selected_inds.append(idx)
+        partidas.append(selected_inds)
+    return partidas
+
+# Realiza una serie de juegos para evaluar la población
+# Estandarizada, cada individuo se enfrenta n veces contra 3 individuos neutrales (equiprovables de ser cualquier agente)
+def prepare_games_standarized():    
+    partidas = []
+    for indi_id in range(num_indiv):
+        for _ in range(games_per_agent_standarized):
+            partida = [indi_id, -1, -1, -1] #-1 indica un individuo neutral, equiprobable a ser cualquier agente
+            partidas.append(partida)
+    return partidas
 
 fitness_data = []
 todos_los_individuos_probabilidades = []
@@ -93,30 +130,30 @@ def main():
     best_probs_per_generation = []  # Store the best probabilities per generation
 
     for gen in range(generations):
-        print(f"\n=== Generación {gen} ===")
-        print("----------------->", len(individuos))
+        print(f"\n=== Generación {gen} === {len(individuos)} individuos")
+        print("----------------->", )
         # Reinicia el fitness de cada individuo para la generación
         for indi in individuos:
             indi.fitness = 0
         
-        partidas = []
-        # Realiza una serie de juegos para evaluar la población
-        for _ in range(games_per_generation):
-            selected_inds = []
-            for _ in range(4):
-                idx = get_random_indiv(selected_inds)
-                selected_inds.append(idx)
-            partidas.append(selected_inds)
+        partidas = prepare_games_standarized()
         
         with concurrent.futures.ProcessPoolExecutor() as executor:
             futures = [executor.submit(handle_game, individuos, p) for p in partidas]
             
             resultados = []
-            for f in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=f"Generación {gen}"):
+            for f in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=f"Generación {gen} / {generations}"):
                 jugadores, fitness = f.result()
                 update_fitness(jugadores, fitness)
                 resultados.append((jugadores, fitness))
+
+
         
+        average_fitness()
+
+        for idx in range(num_indiv):
+            print(f"Agente {idx}: {individuos[idx].fitness}")
+
         # Imprime el mejor fitness de la generación
         best = max(individuos, key=lambda i: i.fitness)
         print("Mejor fitness de la generación:", best.fitness)
@@ -169,6 +206,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_indiv", type=int, default=25, help="Número de individuos en la población")
     parser.add_argument("--generations", type=int, default=100, help="Número de generaciones")
     parser.add_argument("--games_per_generation", type=int, default=150, help="Número de juegos por generación")
+    parser.add_argument("--games_per_agent_standarized", type=int, default=5, help="Número de partidas estandarizadas por agente por generación")
     parser.add_argument("--elite_size", type=int, default=2, help="Número de individuos que se mantienen sin cambios (elitismo)")
     parser.add_argument("--tournament_size", type=int, default=3, help="Tamaño del torneo para selección")
     parser.add_argument("--mutation_rate", type=float, default=0.1, help="Probabilidad de mutar cada gen")
@@ -182,6 +220,7 @@ if __name__ == "__main__":
     num_indiv = args.num_indiv
     generations = args.generations
     games_per_generation = args.games_per_generation
+    games_per_agent_standarized = args.games_per_agent_standarized
     elite_size = args.elite_size
     tournament_size = args.tournament_size
     mutation_rate = args.mutation_rate
@@ -193,6 +232,7 @@ if __name__ == "__main__":
     print(f"  num_indiv: {num_indiv}")
     print(f"  generations: {generations}")
     print(f"  games_per_generation: {games_per_generation}")
+    print(f"  games_per_agent_standarized: {games_per_agent_standarized}")
     print(f"  elite_size: {elite_size}")
     print(f"  tournament_size: {tournament_size}")
     print(f"  mutation_rate: {mutation_rate}")
