@@ -183,7 +183,8 @@ def main():
     df_results_todas = pd.DataFrame({
         "Generacion": np.repeat(range(generations), num_indiv),
         "Individuo": np.tile(range(num_indiv), generations),
-        "Probabilidades": [','.join(map(str, probs)) for gen_probs in todos_los_individuos_probabilidades for probs in gen_probs]
+        "Probabilidades": [','.join(map(str, probs)) for gen_probs in todos_los_individuos_probabilidades for probs in gen_probs],
+        "Fitness": [f for gen in fitness_data for f in gen]
     })
 
     folder_path = "./data"

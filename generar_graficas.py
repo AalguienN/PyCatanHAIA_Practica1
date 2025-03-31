@@ -19,20 +19,39 @@ df = pd.read_csv(csv_filename)
 # Convert the probabilities string column into a list of floats
 df["Mejor_Probabilidades"] = df["Mejor_Probabilidades"].apply(lambda x: list(map(float, x.split(","))))
 
+# === Cargar datos de todos los individuos para calcular top 25% ===
+csv_filename_all = f"./data/{extra_name}_evolucion_fitness_all.csv"
+df_all = pd.read_csv(csv_filename_all)
+
+top25_fitness = df_all.groupby("Generacion").apply(
+    lambda g: g.nlargest(max(1, int(np.ceil(len(g) * 0.25))), 'Fitness')['Fitness'].mean()
+).reset_index(name="Top25_Fitness")
+
+# Calcular promedios móviles con ventana de 3 generaciones
+df["Fitness_Medio_MA"] = df["Fitness_Medio"].rolling(window=3, min_periods=1).mean()
+df["Fitness_Maximo_MA"] = df["Fitness_Maximo"].rolling(window=3, min_periods=1).mean()
+top25_fitness["Top25_Fitness_MA"] = top25_fitness["Top25_Fitness"].rolling(window=3, min_periods=1).mean()
+
 # Extract probability matrix
 probabilities_matrix = np.array(df["Mejor_Probabilidades"].tolist()).T  # Transpose to get each probability separately
 
-# === Plot Fitness Evolution ===
+# === Plot Evolución del Fitness ===
 plt.figure(figsize=(10, 5))
 plt.plot(df["Generacion"], df["Fitness_Medio"], label="Fitness Medio", linestyle="--", marker="o")
 plt.plot(df["Generacion"], df["Fitness_Maximo"], label="Fitness Máximo", linestyle="-", marker="s", color="red")
+plt.plot(top25_fitness["Generacion"], top25_fitness["Top25_Fitness"], label="Fitness Top 25%", linestyle="-.", marker="d", color="green")
+
+plt.plot(df["Generacion"], df["Fitness_Medio_MA"], label="MA Fitness Medio", linestyle="--", marker="o", color="blue")
+plt.plot(df["Generacion"], df["Fitness_Maximo_MA"], label="MA Fitness Máximo", linestyle="-", marker="s", color="orange")
+plt.plot(top25_fitness["Generacion"], top25_fitness["Top25_Fitness_MA"], label="MA Fitness Top 25%", linestyle="-.", marker="d", color="purple")
+
 plt.xlabel("Generación")
 plt.ylabel("Fitness")
 plt.title("Evolución del Fitness")
 plt.legend()
 plt.grid()
 plt.savefig(f"./data/{extra_name}_fitness_best.png")
-#plt.show()
+# plt.show()
 
 # === Plot Best Individual’s Probabilities Over Generations ===
 plt.figure(figsize=(10, 6))

@@ -39,14 +39,16 @@ def mutate(indiv, mutation_rate=0.1, mutation_strength=0.05):
     indiv.election = new_weights
     return indiv
 
+import copy
+
 def reproduce_population(population, elite_size=2, new_size=None):
     if new_size is None:
         new_size = len(population)
     # Ordena la población por fitness de mayor a menor
     sorted_pop = sorted(population, key=lambda indiv: indiv.fitness, reverse=True)
     new_population = []
-    # Elitismo: conservar los mejores individuos sin cambios
-    new_population.extend(sorted_pop[:elite_size])
+    # Elitismo: conservar los mejores individuos sin cambios (usando una copia)
+    new_population.extend([copy.deepcopy(ind) for ind in sorted_pop[:elite_size]])
     # Generar nuevos individuos hasta alcanzar el tamaño deseado
     while len(new_population) < new_size:
         parent1 = tournament_selection(population, tournament_size)
