@@ -1,0 +1,16 @@
+#!/bin/bash
+
+echo "Test 1: Básico"
+
+python3 alg_gen.py --extra_name "small_estandarizado" \
+    --num_indiv 10 \
+    --generations 5 \
+    --games_per_agent_standarized 5 \
+    --elite_size 2 \
+    --tournament_size 1 \
+    --mutation_rate 0.5 \
+    --mutation_strength 0.1
+
+python3 generar_graficas.py --extra_name "small_estandarizado"
+
+echo "All tests completed!"
